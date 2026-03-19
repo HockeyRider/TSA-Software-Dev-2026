@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --color-1: #ebfeff;
+  --color-2: #c2f1ff;
+  --color-3: #bbd5ed;
+  --color-4: #a8cdf0;
+  --color-5: #9cbfe7;
+  
+  --bg: var(--color-1);
+  --surface: rgba(255, 255, 255, 0.7);
+  --border: rgba(255, 255, 255, 0.3);
+  --accent: var(--color-5);
+  --accent-soft: var(--color-2);
+  --text: #2c3e50;
+  --text-muted: #5d6d7e;
+  
+  --shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.18);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+}
+
+::-selection {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* Unique Scrollbar for own design*/
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
