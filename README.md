@@ -1,35 +1,28 @@
-# News Voice Assistant
+**Overview**
+Aria is a voice-controlled AI assistant designed to improve accessibility for individuals with visual and hearing impairments. It enables users to interact with their devices through natural voice commands, reducing reliance on traditional visual interfaces.
 
-Voice-powered news summarizer. Say "Open the New York Times" and it'll fetch, summarize, and read the latest news aloud.
 
-## Setup
+**Features**
+Voice-Controlled Navigation
+Open applications, launch browser tabs, and navigate your system using voice commands.
 
-1. Install dependencies:
-```bash
-npm install
-```
+Music Playback
+Play songs or playlists hands-free.
 
-2. Add your OpenRouter API key:
-```bash
-cp .env.local.example .env.local
-# then edit .env.local and add your key
-```
+Email Reader
+Reads incoming emails aloud for easy access.
 
-3. Run locally:
-```bash
-npm run dev
-```
+News Headlines
+Retrieves and reads current news updates.
 
-## Deploy to Vercel
+Web Browsing Assistant
+Opens websites or performs searches based on voice input.
 
-1. Push this folder to a GitHub repo
-2. Go to [vercel.com](https://vercel.com) → New Project → import your repo
-3. Add environment variable in Vercel dashboard:
-   - `OPENROUTER_API_KEY` = your key from openrouter.ai
-4. Deploy!
+**Purpose**
+Modern digital systems often depend on visual interaction, creating barriers for many users. Aria aims to:
+Improve accessibility for visually impaired individuals
+Enable hands-free system interaction
+Provide a low-cost assistive solution
 
-## Usage
-
-- Say **"Open the New York Times"** → fetches + summarizes + reads latest NYT headlines
-- Say **"exit"** → stops the assistant
-- Requires Chrome or Edge (Web Speech API)
+**Impact**
+Aria demonstrates how AI can be used to create more inclusive and accessible technology, promoting independence and equal access to digital tools.
