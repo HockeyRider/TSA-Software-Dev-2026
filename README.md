@@ -35,6 +35,11 @@ Modern digital systems often depend on visual interaction, creating barriers for
 
 ---
 
+## Link
+[Open Aria](aria-tsa.vercel.app)
+
+---
+
 ## Impact
 Aria demonstrates how AI can be used to create more **inclusive and accessible technology**, promoting independence and equal access to digital tools.
 
