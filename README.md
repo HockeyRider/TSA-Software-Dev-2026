@@ -36,7 +36,7 @@ Modern digital systems often depend on visual interaction, creating barriers for
 ---
 
 ## Link
-[Open Aria](aria-tsa.vercel.app)
+[Open Aria](https://aria-tsa.vercel.app)
 
 ---
 
