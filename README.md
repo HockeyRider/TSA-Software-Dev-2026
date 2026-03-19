@@ -1,4 +1,4 @@
-**Overview**\n
+#Overview
 Aria is a voice-controlled AI assistant designed to improve accessibility for individuals with visual and hearing impairments. It enables users to interact with their devices through natural voice commands, reducing reliance on traditional visual interfaces.
 
 
