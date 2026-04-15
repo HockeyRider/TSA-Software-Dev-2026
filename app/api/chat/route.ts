@@ -9,6 +9,32 @@ const GOOGLE_TTS_API_KEY = "XXXXXXXXXXXXXXXXXXXXXX";
 const GOOGLE_MAPS_API_KEY = "XXXXXXXXXXXXXXXXXXXXXX";
 const MODEL = "openai/gpt-4o-mini-2024-07-18";
 
+// Keywords that open World Monitor + fetch news
+const WORLD_MONITOR_KEYWORDS = [
+  "what's happening",
+  "whats happening",
+  "what is happening",
+  "around the world",
+  "current news",
+  "latest news",
+  "world news",
+  "global news",
+  "international news",
+  "breaking news",
+  "top stories",
+  "news today",
+  "headlines",
+  "world events",
+  "world monitor",
+  "worldmonitor",
+  "open world monitor",
+  "show world monitor",
+  "open map",
+  "show map",
+  "world map",
+  "global map",
+];
+
 async function getAccessToken(): Promise<string> {
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
@@ -95,7 +121,8 @@ async function callOpenRouterWithHistory(
       messages: [
         {
           role: "system",
-          content: "You are a helpful voice assistant. Keep responses short and conversational since they will be read aloud. No bullet points, no markdown.",
+          content:
+            "You are a helpful voice assistant. Keep responses short and conversational since they will be read aloud. No bullet points, no markdown.",
         },
         ...messages.filter((m) => m.content != null),
       ],
@@ -122,7 +149,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Handle TTS requests
+    // TTS
     if (body.type === "tts") {
       const res = await fetch(
         `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`,
@@ -140,150 +167,230 @@ export async function POST(req: NextRequest) {
           }),
         }
       );
-    
       if (!res.ok) {
         const err = await res.text();
-        console.error("Google TTS error:", err);
         return NextResponse.json({ error: err }, { status: 500 });
       }
-    
       const data = await res.json();
       const audioBuffer = Buffer.from(data.audioContent, "base64");
       return new NextResponse(audioBuffer, {
         headers: { "Content-Type": "audio/mpeg" },
       });
     }
-    
-    if (body.type === "browser") {
-      // not needed, handled frontend side
-    }
-    
+
+    // Location
     if (body.type === "location") {
       const { latitude, longitude, query } = body;
-      
       const geocodeRes = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${GOOGLE_MAPS_API_KEY}`
       );
       const geocodeData = await geocodeRes.json();
       const address = geocodeData.results?.[0]?.formatted_address ?? "unknown location";
-    
       const placesRes = await fetch(
         `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=500&key=${GOOGLE_MAPS_API_KEY}`
       );
       const placesData = await placesRes.json();
-      const places = placesData.results
-        ?.slice(0, 10)
-        .map((p: any) => `${p.name} (${p.types?.[0]?.replace(/_/g, " ")})`)
-        .join(", ") ?? "no nearby places found";
-    
+      const places =
+        placesData.results
+          ?.slice(0, 10)
+          .map((p: any) => `${p.name} (${p.types?.[0]?.replace(/_/g, " ")})`)
+          .join(", ") ?? "no nearby places found";
       const summary = await callOpenRouterWithHistory([
         {
           role: "user",
           content: `The user is at ${address}. Nearby places within 1000 meters include: ${places}. The user asked: "${query}". Answer their specific question using this location data naturally in 2-3 sentences like you're helping a blind person.`,
         },
       ]);
-    
       return NextResponse.json({ intent: "location", message: summary });
     }
 
-    // Handle voice commands
+    // Voice commands
     const { command, messages = [] } = body;
-if (!command) {
-  return NextResponse.json({ error: "No command" }, { status: 400 });
-}
+    if (!command) {
+      return NextResponse.json({ error: "No command" }, { status: 400 });
+    }
 
-const lowerCommand = command.toLowerCase();
+    const lowerCommand = command.toLowerCase();
 
-if (lowerCommand.includes("play ") ||
-    lowerCommand.includes("put on ") ||
-    lowerCommand.includes("listen to ") ||
-    lowerCommand.includes("queue ") ||
-    lowerCommand.includes("start playing")) {
-  const result = await searchYouTube(command);
-  if (!result) return NextResponse.json({ intent: "music", message: "Sorry, I couldn't find that song." });
-  return NextResponse.json({ intent: "music", message: `Playing ${result.title}`, videoId: result.videoId });
+    // ── Music ──
+    if (
+      lowerCommand.includes("play ") ||
+      lowerCommand.includes("put on ") ||
+      lowerCommand.includes("listen to ") ||
+      lowerCommand.includes("queue ") ||
+      lowerCommand.includes("start playing")
+    ) {
+      const result = await searchYouTube(command);
+      if (!result)
+        return NextResponse.json({ intent: "music", message: "Sorry, I couldn't find that song." });
+      return NextResponse.json({
+        intent: "music",
+        message: `Playing ${result.title}`,
+        videoId: result.videoId,
+      });
+    }
 
-} else if (
-    lowerCommand.includes("email") ||
-    lowerCommand.includes("inbox") ||
-    lowerCommand.includes("unread") ||
-    lowerCommand.includes("my mail") ||
-    lowerCommand.includes("check my")) {
-  const emailList = await getEmails();
-  const summary = await callOpenRouter(
-    `Read out these emails naturally and conversationally like you're a personal assistant. Do NOT restate the question, just read them out. Keep it brief:\n\n${emailList}`
-  );
-  return NextResponse.json({ intent: "email", message: summary });
+    // ── Email ──
+    if (
+      lowerCommand.includes("email") ||
+      lowerCommand.includes("inbox") ||
+      lowerCommand.includes("unread") ||
+      lowerCommand.includes("my mail") ||
+      lowerCommand.includes("check my")
+    ) {
+      const emailList = await getEmails();
+      const summary = await callOpenRouter(
+        `Read out these emails naturally and conversationally like you're a personal assistant. Do NOT restate the question, just read them out. Keep it brief:\n\n${emailList}`
+      );
+      return NextResponse.json({ intent: "email", message: summary });
+    }
 
-} else if (
-    lowerCommand.includes("where am i") ||
-    lowerCommand.includes("where are we") ||
-    lowerCommand.includes("my location") ||
-    lowerCommand.includes("near me") ||
-    lowerCommand.includes("nearby") ||
-    lowerCommand.includes("around me") ||
-    lowerCommand.includes("closest ") ||
-    lowerCommand.includes("nearest ") ||
-    lowerCommand.includes("directions to") ||
-    lowerCommand.includes("navigate to")) {
-  return NextResponse.json({ intent: "location" });
+    // ── Location ──
+    if (
+      lowerCommand.includes("where am i") ||
+      lowerCommand.includes("where are we") ||
+      lowerCommand.includes("my location") ||
+      lowerCommand.includes("near me") ||
+      lowerCommand.includes("nearby") ||
+      lowerCommand.includes("around me") ||
+      lowerCommand.includes("closest ") ||
+      lowerCommand.includes("nearest ") ||
+      lowerCommand.includes("directions to") ||
+      lowerCommand.includes("navigate to")
+    ) {
+      return NextResponse.json({ intent: "location" });
+    }
 
-} else if (
-    lowerCommand.includes("news") ||
-    lowerCommand.includes("headlines") ||
-    lowerCommand.includes("what's happening") ||
-    lowerCommand.includes("whats happening") ||
-    lowerCommand.includes("current events") ||
-    lowerCommand.includes("bbc") ||
-    lowerCommand.includes("cnn") ||
-    lowerCommand.includes("reuters") ||
-    lowerCommand.includes("guardian") ||
-    lowerCommand.includes("washington post") ||
-    lowerCommand.includes("fox news") ||
-    lowerCommand.includes("new york times") ||
-    lowerCommand.includes("nyt")) {
-  const intentResponse = await callOpenRouter(
-    `Extract the news website URL the user wants. User said: "${command}". Return ONLY the URL like https://www.bbc.com, nothing else. If no specific site mentioned use https://www.nytimes.com`
-  );
-  const url = intentResponse.trim();
-  const articleText = await getArticleText(url);
-  if (!articleText) return NextResponse.json({ intent: "news", message: "I couldn't fetch that site right now." });
-  const summary = await callOpenRouter(
-    `Summarize this news content conversationally in under 4 sentences. No bullet points, plain friendly text (no symbols, includes dashes):\n\n${articleText}`
-  );
-  return NextResponse.json({ intent: "news", message: summary });
+    // ── World Monitor + News (combined) ──
+    // Covers: "what's happening around the world", "world news", "current news",
+    // "world monitor", "open map", etc.
+    const isWorldMonitorTrigger = WORLD_MONITOR_KEYWORDS.some((kw) =>
+      lowerCommand.includes(kw)
+    );
 
-} else if (
-    lowerCommand.includes("open ") ||
-    lowerCommand.includes("go to ") ||
-    lowerCommand.includes("search for ") ||
-    lowerCommand.includes("google ") ||
-    lowerCommand.includes("look up ") ||
-    lowerCommand.includes("youtube") ||
-    lowerCommand.includes("spotify") ||
-    lowerCommand.includes("instagram") ||
-    lowerCommand.includes("reddit") ||
-    lowerCommand.includes("twitter") ||
-    lowerCommand.includes("facebook")) {
-  return NextResponse.json({ intent: "browser", message: "Opening that for you now" });
+    if (isWorldMonitorTrigger) {
+      // Check if it's also a map control action
+      let mapAction = "open";
+      let mapTarget = "";
 
-} else if (
-    lowerCommand === "exit" ||
-    lowerCommand === "goodbye" ||
-    lowerCommand === "bye" ||
-    lowerCommand.includes("shut down") ||
-    lowerCommand.includes("stop aria") ||
-    lowerCommand.includes("quit")) {
-  return NextResponse.json({ intent: "exit", message: "Goodbye!" });
+      if (lowerCommand.includes("zoom in")) mapAction = "zoomIn";
+      else if (lowerCommand.includes("zoom out")) mapAction = "zoomOut";
+      else if (lowerCommand.includes("reset") || lowerCommand.includes("center map"))
+        mapAction = "reset";
+      else {
+        const regionMatch = lowerCommand.match(
+          /(?:go to|show|focus on|find on map)\s+(.+)/
+        );
+        if (regionMatch) {
+          mapAction = "goto";
+          mapTarget = regionMatch[1];
+        }
+      }
 
-} else {
+      // If it's a news/current-events query, fetch real news for the narration
+      const isNewsQuery =
+        lowerCommand.includes("news") ||
+        lowerCommand.includes("headlines") ||
+        lowerCommand.includes("happening") ||
+        lowerCommand.includes("events") ||
+        lowerCommand.includes("stories");
+
+      let message = "";
+
+      if (isNewsQuery && mapAction === "open") {
+        // Determine news source from command
+        const NEWS_SOURCES: Record<string, string> = {
+          bbc: "https://www.bbc.com/news",
+          cnn: "https://www.cnn.com",
+          reuters: "https://www.reuters.com",
+          guardian: "https://www.theguardian.com",
+          "washington post": "https://www.washingtonpost.com",
+          "fox news": "https://www.foxnews.com",
+          "new york times": "https://www.nytimes.com",
+          nyt: "https://www.nytimes.com",
+          npr: "https://www.npr.org/sections/news",
+          ap: "https://apnews.com",
+          "associated press": "https://apnews.com",
+          bloomberg: "https://www.bloomberg.com",
+          techcrunch: "https://techcrunch.com",
+          wired: "https://www.wired.com",
+          espn: "https://www.espn.com",
+          axios: "https://www.axios.com",
+          cnbc: "https://www.cnbc.com",
+          wsj: "https://www.wsj.com",
+          "wall street journal": "https://www.wsj.com",
+        };
+
+        let url = "https://apnews.com"; // default
+        for (const [keyword, sourceUrl] of Object.entries(NEWS_SOURCES)) {
+          if (lowerCommand.includes(keyword)) {
+            url = sourceUrl;
+            break;
+          }
+        }
+
+        try {
+          const articleText = await getArticleText(url);
+          if (articleText) {
+            message = await callOpenRouter(
+              `You are a voice assistant with a World Monitor map open. Briefly tell the user you're opening World Monitor and then give a 3-4 sentence summary of what's happening in the world based on this news content. Keep it conversational, no bullet points, no symbols:\n\n${articleText}`
+            );
+          }
+        } catch {
+          // fallback below
+        }
+      }
+
+      if (!message) {
+        message =
+          mapAction === "open"
+            ? "Opening World Monitor for you. This will show you what's currently happening across the globe."
+            : `Executing map command: ${mapAction}${mapTarget ? " — " + mapTarget : ""}`;
+      }
+
+      return NextResponse.json({
+        intent: "worldmap",
+        mapAction,
+        mapTarget,
+        message,
+      });
+    }
+
+    // ── Browser ──
+    if (
+      lowerCommand.includes("open ") ||
+      lowerCommand.includes("go to ") ||
+      lowerCommand.includes("search for ") ||
+      lowerCommand.includes("google ") ||
+      lowerCommand.includes("look up ") ||
+      lowerCommand.includes("youtube") ||
+      lowerCommand.includes("spotify") ||
+      lowerCommand.includes("instagram") ||
+      lowerCommand.includes("reddit") ||
+      lowerCommand.includes("twitter") ||
+      lowerCommand.includes("facebook")
+    ) {
+      return NextResponse.json({ intent: "browser", message: "Opening that for you now" });
+    }
+
+    // ── Exit ──
+    if (
+      lowerCommand === "exit" ||
+      lowerCommand === "goodbye" ||
+      lowerCommand === "bye" ||
+      lowerCommand.includes("shut down") ||
+      lowerCommand.includes("stop aria") ||
+      lowerCommand.includes("quit")
+    ) {
+      return NextResponse.json({ intent: "exit", message: "Goodbye!" });
+    }
+
+    // ── Chat (default) ──
     const reply = await callOpenRouterWithHistory([
       ...messages,
       { role: "user", content: command },
     ]);
     return NextResponse.json({ intent: "chat", message: reply });
-  }
-
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ intent: "error", message: String(err) }, { status: 500 });
